@@ -11,3 +11,22 @@ class AcceptedReviewResponse(BaseModel):
     id: str
     status: Literal["queued"]
     head_sha: str
+
+
+class FindingResponse(BaseModel):
+    file_path: str
+    start_line: int
+    end_line: int
+    category: str
+    severity: str
+    title: str
+    explanation: str
+    evidence: dict[str, object]
+    verification_status: str
+
+
+class ReviewStatusResponse(BaseModel):
+    id: str
+    status: str
+    head_sha: str
+    findings: list[FindingResponse]

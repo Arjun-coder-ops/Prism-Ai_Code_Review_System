@@ -2,88 +2,55 @@
 
 **Last updated:** 2026-11-13
 
-## Completed
+## Completed and verified locally
 
-- Milestone 0 foundation: FastAPI health/readiness endpoints, React/Vite shell,
-  Compose services, CI configuration, environment example, and documentation.
-- Neon-compatible persistence foundation: async SQLAlchemy engine/session,
-  Alembic configuration, and a reviewed initial migration for users, GitHub
-  installations, repositories, pull requests, review runs, and findings.
-- Configuration now distinguishes `DATABASE_URL` (application/pooler) from
-  `DIRECT_DATABASE_URL` (migrations). No secrets were added; `.env.example`
-  has placeholders for Groq primary and Gemini fallback credentials.
-- Configuration enforces Groq as the primary provider and Gemini as the
-  fallback; API keys use redacting `SecretStr` values. No LLM provider adapter
-  has been implemented or invoked.
-- Milestone 1 is now in progress: canonical public-GitHub PR intake, fixed-base
-  metadata retrieval, queued review-run persistence, and a narrow
-  deterministic unified-diff analyzer are implemented. The analyzer never
-  executes repository code and verifies exact line evidence before retaining a
-  candidate.
-- Public changed-file pagination is bounded to 3,000 files. Only patch text
-  supplied by GitHub is analyzed; unavailable patches are explicitly skipped.
-- A provider-neutral JSON boundary now gives Groq first attempt and Gemini a
-  classified-failure fallback. Its tests use fakes; live provider calls remain
-  **NOT VERIFIED** because no credentials are configured.
+- Milestone 0: FastAPI/React foundation, Compose services, environment-based
+  configuration, initial Alembic schema, and CI configuration.
+- Milestone 1: canonical public GitHub PR intake, bounded diff-only retrieval,
+  deterministic evidence validation, and Groq-primary/Gemini-fallback adapters.
+  LLM adapters are not called without configured keys.
+- Milestone 2: durable review runs, Celery dispatch on `prism.review`, Redis
+  results, atomic PostgreSQL claims, a 10-minute stale-worker lease, bounded
+  retries for transient GitHub outages, permanent-failure persistence, finding
+  persistence, status retrieval, and a polling frontend.
 
-## Observed Verification
+The worker keeps one asyncio loop per prefork process. This avoids asyncpg
+connections being reused across per-task event loops; a regression test covers
+the failure that exposed this requirement.
 
-- Ruff and strict mypy passed after the persistence and provider-configuration
-  changes.
-- Alembic history reported the `20261112_0001` head revision.
-- Docker Compose built `prism-backend` and `prism-frontend`, then started the
-  isolated PostgreSQL, Redis, backend, and frontend services.
-- PostgreSQL and Redis reported healthy. The initial migration applied to the
-  new local `prism_postgres_data` volume; `alembic_version` contains
-  `20261112_0001` and Redis returned `PONG`.
-- `GET /health` returned `200 {"status":"ok"}`; `GET /ready` returned `200`
-  with PostgreSQL and Redis both `ok`; the frontend returned HTTP `200`.
-- Earlier foundation checks passed: frontend lint, Vitest (1 test), TypeScript
-  build, Vite production build, and production-only npm audit (0 findings).
-- The rebuilt Compose stack is running with PostgreSQL and Redis healthy;
-  `/ready` reports both dependencies as `ok`. OpenAPI contains
-  `POST /api/v1/reviews`; a malicious-host URL returns the intended `422`
-  before any GitHub call.
-- Backend static checks pass, and the complete backend suite runs in an
-  isolated Linux container: **27 passed**, **85%** coverage.
+## Observed verification
 
-## Verification Gaps and Blockers
+- Python 3.12 container gate: Ruff PASS, Mypy PASS, and **39 passed** backend
+  tests with 84% total coverage. The integration tests use local Compose
+  PostgreSQL/Redis and deterministic fake GitHub-diff clients.
+- Frontend: ESLint PASS, Vitest **1 passed**, TypeScript/Vite production build
+  PASS.
+- Compose: configuration validation and image builds PASS. PostgreSQL and Redis
+  are healthy; backend, worker, and frontend are running.
+- Runtime: a harmless nonexistent ID was dispatched through Redis/Celery and
+  returned `missing`. A real public `octocat/Hello-World#1` submission
+  completed through FastAPI → PostgreSQL → Redis → Celery → GitHub diff API →
+  deterministic analysis → persisted API status. No repository code was
+  executed and no GitHub comment was published.
+- Frontend proxy: `GET /api/v1/reviews/{id}` through Vite returned the completed
+  persisted result.
 
-- The current host Python 3.15 environment hangs while creating its async
-  event-loop self-pipe, before async pytest tests execute. The post-change
-  full backend suite therefore has **not** been counted as passing. The
-  attempted ephemeral Linux test runner lost its connection before returning a
-  result.
-- Docker Desktop was available for the successful run above, but is currently
-  unavailable again (`dockerDesktopLinuxEngine` pipe missing). Restart/recovery
-  verification and fresh container retesting are not currently possible.
-- No Neon, Groq, Gemini, or GitHub credentials are configured; live external
-  connectivity is intentionally not verified.
-- The project directory has no repository-local Git root or remote, so no
-  commits or pushes were made.
-- Full `npm audit` still reports seven moderate, dev-only advisories in the
-  TypeScript ESLint chain. The compatible production audit remains clean.
+## Verification matrix
 
-## Verification Matrix
-
-| Component | Command | Result | Detail / corrective action |
+| Component | Command | Result | Notes |
 | --- | --- | --- | --- |
-| Python dependencies | `pip install -e ".[dev]"` | PASS | `pip check` passed after adding Alembic. |
-| Backend static checks | `ruff check app tests migrations`; `mypy app` | PASS | Verified after persistence changes. |
-| Backend tests, current code | Isolated Linux `pytest -q` | PASS | 27 passed; 85% coverage. |
-| Alembic metadata/history | `alembic -c alembic.ini history` | PASS | Initial revision is the migration head. |
-| Compose model | `docker compose config --quiet` | PASS | Compose syntax validated. |
-| Container images | `docker compose build backend`; `docker compose build frontend` | PASS | Both PRISM application images built. |
-| Local services | `docker compose up --detach --no-build` | PASS | PostgreSQL and Redis healthy; API and frontend up. |
-| Local migration | `docker compose exec -T backend alembic -c alembic.ini upgrade head` | PASS | Applied `20261112_0001` to the local volume. |
-| Runtime probes | PostgreSQL/Redis CLI and HTTP requests | PASS | Migration revision, `PONG`, health/readiness, and frontend HTTP 200 observed. |
-| Frontend checks | `npm run lint`; `npm test`; `npm run build` | PASS (earlier) | 1 Vitest test and production build passed before backend-only changes. |
-| Production npm audit | `npm audit --omit=dev` | PASS | 0 production vulnerabilities. |
-| Live Neon / LLM / GitHub | Credentialed checks | NOT VERIFIED | Credentials intentionally absent; public GitHub calls are mocked in tests. |
+| Backend quality | Containerized Ruff, Mypy, `pytest -q` | PASS | 39 tests, Python 3.12.16. |
+| Review processor | `tests/integration/test_review_processor.py` | PASS | Idempotency, concurrency, stale recovery, permanent/transient failures. |
+| Frontend quality | `npm run lint && npm run test && npm run build` | PASS | 1 test; production build completed. |
+| Compose runtime | `docker compose build`; `up -d` | PASS | App services running; database and Redis healthy. |
+| Celery delivery | `process_review_run.delay(<random UUID>)` | PASS | Worker consumed task and returned `missing`. |
+| Public end-to-end flow | Local POST/GET for `octocat/Hello-World#1` | PASS | Completed; zero findings is an abstaining result. |
+| Neon PostgreSQL | Credentialed connection | NOT VERIFIED | No Neon URL is configured. |
+| Groq/Gemini | Credentialed request | NOT VERIFIED | No provider keys are configured. |
+| GitHub App/webhooks | Credentialed integration | NOT VERIFIED | Milestone 3 work remains. |
 
-## Next Step
+## Next step
 
-Restore Docker Desktop access and run the backend suite in a working Linux or
-corrected host Python environment. Then implement Milestone 1 with deterministic
-analysis first, Groq primary/Gemini fallback adapters, and evidence-verification
-tests—without publishing any review comment automatically.
+Implement Milestone 3 GitHub App authentication, signed webhook verification,
+and least-privilege installation access. Preserve the human approval gate for
+all review publication.

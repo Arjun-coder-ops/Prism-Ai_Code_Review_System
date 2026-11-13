@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.pull_request_url import ParsedPullRequestUrl
 from app.integrations.github_public import GitHubPublicClient, PublicPullRequest
 from app.models.review import PullRequest, Repository, ReviewRun
+from app.services.review_dispatcher import ReviewDispatcher
 
 _REVIEW_POLICY_VERSION = "deterministic-v1"
 
@@ -24,9 +25,11 @@ class ReviewIntakeService:
         self,
         session: AsyncSession,
         github_client: GitHubPublicClient,
+        dispatcher: ReviewDispatcher,
     ) -> None:
         self._session = session
         self._github_client = github_client
+        self._dispatcher = dispatcher
 
     async def accept(self, parsed_url: ParsedPullRequestUrl) -> AcceptedReview:
         source_pull_request = await self._github_client.get_pull_request(parsed_url)
@@ -40,6 +43,8 @@ class ReviewIntakeService:
             source_pull_request.head_sha,
         )
         await self._session.commit()
+        if review_run.status == "queued":
+            self._dispatcher.enqueue(str(review_run.id))
         return AcceptedReview(
             review_id=str(review_run.id),
             status=review_run.status,

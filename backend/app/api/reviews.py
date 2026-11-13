@@ -1,11 +1,20 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import get_session
 from app.domain.pull_request_url import PullRequestUrlError, parse_pull_request_url
 from app.integrations.github_public import GitHubPublicClientError
-from app.schemas.review import AcceptedReviewResponse, CreateReviewRequest
+from app.schemas.review import (
+    AcceptedReviewResponse,
+    CreateReviewRequest,
+    FindingResponse,
+    ReviewStatusResponse,
+)
 from app.services.review_intake import ReviewIntakeService
+from app.services.review_results import get_review_result
 
 from .dependencies import get_review_intake_service
 
@@ -54,4 +63,38 @@ async def create_review(
         id=review.review_id,
         status="queued",
         head_sha=review.head_sha,
+    )
+
+
+@router.get("/{review_id}", response_model=ReviewStatusResponse)
+async def get_review(
+    review_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ReviewStatusResponse:
+    try:
+        parsed_id = uuid.UUID(review_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from exc
+    result = await get_review_result(session, parsed_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    review_run, findings = result
+    return ReviewStatusResponse(
+        id=str(review_run.id),
+        status=review_run.status,
+        head_sha=review_run.reviewed_head_sha,
+        findings=[
+            FindingResponse(
+                file_path=finding.file_path,
+                start_line=finding.start_line,
+                end_line=finding.end_line,
+                category=finding.category,
+                severity=finding.severity,
+                title=finding.title,
+                explanation=finding.explanation,
+                evidence=finding.evidence,
+                verification_status=finding.verification_status,
+            )
+            for finding in findings
+        ],
     )

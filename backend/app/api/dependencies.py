@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.db.session import get_session
 from app.integrations.github_public import GitHubPublicClient
 from app.services.readiness import ReadinessService
+from app.services.review_dispatcher import CeleryReviewDispatcher
 from app.services.review_intake import ReviewIntakeService
 
 
@@ -32,4 +33,4 @@ async def get_review_intake_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     github_client: Annotated[GitHubPublicClient, Depends(get_github_public_client)],
 ) -> ReviewIntakeService:
-    return ReviewIntakeService(session, github_client)
+    return ReviewIntakeService(session, github_client, CeleryReviewDispatcher())

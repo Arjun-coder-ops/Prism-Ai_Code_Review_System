@@ -24,27 +24,23 @@ Dependencies: a supported Python and Node runtime, package installation access,
 and optionally Docker. No GitHub or LLM credentials are required for fixture
 based Milestone 0 verification.
 
-**Progress:** documentation, source scaffolding, dependency locks, static
-checks, frontend checks, and local Compose runtime validation are complete.
-The reviewed initial Alembic migration was applied to the local PostgreSQL
-volume; Redis, `/health`, `/ready`, and the frontend endpoint were observed
-healthy. A Neon-compatible async persistence boundary is included, using
-`DATABASE_URL` for application traffic and `DIRECT_DATABASE_URL` for
-migrations. Full current-suite host testing remains unverified because Python
-3.15's async event-loop setup hangs before async tests execute; see
-`docs/STATUS.md`.
+**Progress:** complete and locally verified. The Python runtime is aligned to
+3.12 in Docker and CI. The initial Alembic migration is applied locally;
+PostgreSQL, Redis, `/health`, `/ready`, and the frontend endpoint have been
+observed healthy. `DATABASE_URL` serves application traffic and
+`DIRECT_DATABASE_URL` serves migrations.
 
 ## Subsequent Milestones
 
-1. Public PR analysis MVP.
-2. Durable asynchronous review engine.
+1. Public PR analysis MVP — complete locally.
+2. Durable asynchronous review engine — complete locally.
 3. GitHub App and signed webhooks.
 4. Hybrid analysis, evidence verification, and human-approved publication.
 5. Repository and test intelligence.
 6. Evaluation, hardening, UI polish, and deployment readiness.
 
-Milestone 1 implementation remains pending the documented verification gap and
-the required GitHub/LLM credentials; Groq will be primary and Gemini fallback.
+Credentialed LLM checks remain pending; Groq remains primary and Gemini the
+bounded fallback. Deterministic analysis is the required first stage.
 
 ### Milestone 1 progress — public review intake (in progress)
 
@@ -59,5 +55,18 @@ the required GitHub/LLM credentials; Groq will be primary and Gemini fallback.
 - Implemented Groq-primary/Gemini-fallback JSON provider adapters and
   deterministic failover tests. Live provider connectivity remains blocked on
   unconfigured credentials.
-- Deferred: public file pagination, durable worker dispatch, finding
-  persistence, UI presentation, LLM provider adapter, and any publication.
+- The status endpoint and polling frontend expose only persisted findings;
+  external review publication remains deliberately absent.
+
+### Milestone 2 progress — durable asynchronous review engine (complete locally)
+
+- Celery tasks use JSON serialization, late acknowledgement, one-task prefetch,
+  bounded exponential retry, and a dedicated `prism.review` queue.
+- PostgreSQL conditionally claims a review run and recovers stale in-progress
+  leases, preventing duplicate concurrent processors from persisting duplicate
+  findings.
+- Permanent upstream failures are stored as failed runs; only unavailable
+  GitHub service errors retry. Completed runs are idempotent.
+- Compose-backed integration tests verify state persistence, concurrency,
+  recovery, and failure classification. A real public GitHub PR completed
+  through the local stack without source execution or comment publication.
