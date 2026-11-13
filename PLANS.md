@@ -56,5 +56,8 @@ the required GitHub/LLM credentials; Groq will be primary and Gemini fallback.
 - Implemented bounded public GitHub changed-file pagination and a pipeline that
   analyzes only supplied patch text; missing patches abstain rather than cause
   source retrieval or execution.
+- Implemented Groq-primary/Gemini-fallback JSON provider adapters and
+  deterministic failover tests. Live provider connectivity remains blocked on
+  unconfigured credentials.
 - Deferred: public file pagination, durable worker dispatch, finding
   persistence, UI presentation, LLM provider adapter, and any publication.

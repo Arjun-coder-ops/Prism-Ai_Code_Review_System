@@ -63,6 +63,8 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "PRISM_GEMINI_API_KEY"),
     )
+    groq_model: str = "openai/gpt-oss-20b"
+    gemini_model: str = "gemini-3.5-flash"
 
     @property
     def migration_database_url(self) -> str:
