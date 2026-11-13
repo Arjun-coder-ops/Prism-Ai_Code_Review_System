@@ -63,6 +63,13 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "PRISM_GEMINI_API_KEY"),
     )
+    github_webhook_secret: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "GITHUB_WEBHOOK_SECRET",
+            "PRISM_GITHUB_WEBHOOK_SECRET",
+        ),
+    )
     groq_model: str = "openai/gpt-oss-20b"
     gemini_model: str = "gemini-3.5-flash"
 

@@ -70,3 +70,10 @@ bounded fallback. Deterministic analysis is the required first stage.
 - Compose-backed integration tests verify state persistence, concurrency,
   recovery, and failure classification. A real public GitHub PR completed
   through the local stack without source execution or comment publication.
+
+### Milestone 3 progress — GitHub App and signed webhooks (in progress)
+
+- Added a fail-closed raw-body HMAC verification endpoint. It has explicit size
+  limits and accepts only a small event allow-list after authentication.
+- GitHub App private-key authentication, installation synchronization, and
+  credentialed live verification remain pending configuration and implementation.

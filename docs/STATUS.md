@@ -13,6 +13,10 @@
   results, atomic PostgreSQL claims, a 10-minute stale-worker lease, bounded
   retries for transient GitHub outages, permanent-failure persistence, finding
   persistence, status retrieval, and a polling frontend.
+- Milestone 3 is in progress: the webhook boundary verifies raw-body GitHub
+  HMAC signatures in constant time, limits payload size, and fails closed when
+  its environment-managed secret is unavailable. It does not yet synchronize
+  installations or use GitHub App credentials.
 
 The worker keeps one asyncio loop per prefork process. This avoids asyncpg
 connections being reused across per-task event loops; a regression test covers
