@@ -22,6 +22,9 @@
   candidate.
 - Public changed-file pagination is bounded to 3,000 files. Only patch text
   supplied by GitHub is analyzed; unavailable patches are explicitly skipped.
+- A provider-neutral JSON boundary now gives Groq first attempt and Gemini a
+  classified-failure fallback. Its tests use fakes; live provider calls remain
+  **NOT VERIFIED** because no credentials are configured.
 
 ## Observed Verification
 
