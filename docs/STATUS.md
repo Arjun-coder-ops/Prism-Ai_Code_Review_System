@@ -20,6 +20,8 @@
   deterministic unified-diff analyzer are implemented. The analyzer never
   executes repository code and verifies exact line evidence before retaining a
   candidate.
+- Public changed-file pagination is bounded to 3,000 files. Only patch text
+  supplied by GitHub is analyzed; unavailable patches are explicitly skipped.
 
 ## Observed Verification
 
@@ -40,7 +42,7 @@
   `POST /api/v1/reviews`; a malicious-host URL returns the intended `422`
   before any GitHub call.
 - Backend static checks pass, and the complete backend suite runs in an
-  isolated Linux container: **25 passed**, **86%** coverage.
+  isolated Linux container: **27 passed**, **85%** coverage.
 
 ## Verification Gaps and Blockers
 
@@ -65,7 +67,7 @@
 | --- | --- | --- | --- |
 | Python dependencies | `pip install -e ".[dev]"` | PASS | `pip check` passed after adding Alembic. |
 | Backend static checks | `ruff check app tests migrations`; `mypy app` | PASS | Verified after persistence changes. |
-| Backend tests, current code | Isolated Linux `pytest -q` | PASS | 25 passed; 86% coverage. |
+| Backend tests, current code | Isolated Linux `pytest -q` | PASS | 27 passed; 85% coverage. |
 | Alembic metadata/history | `alembic -c alembic.ini history` | PASS | Initial revision is the migration head. |
 | Compose model | `docker compose config --quiet` | PASS | Compose syntax validated. |
 | Container images | `docker compose build backend`; `docker compose build frontend` | PASS | Both PRISM application images built. |

@@ -58,3 +58,39 @@ async def test_classifies_missing_public_pull_request_without_leaking_response(
             )
     finally:
         await client.aclose()
+
+
+@pytest.mark.anyio
+async def test_lists_patched_files_with_bounded_pagination() -> None:
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        page = request.url.params["page"]
+        payload = (
+            [
+                {
+                    "filename": "src/app.py",
+                    "status": "modified",
+                    "patch": "@@ -1 +1 @@\n+x",
+                }
+            ]
+            if page == "1"
+            else []
+        )
+        return httpx.Response(200, json=payload)
+
+    client = httpx.AsyncClient(
+        base_url="https://api.github.com",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        files = await GitHubPublicClient(client).list_pull_request_files(
+            parse_pull_request_url("https://github.com/octo-org/prism/pull/42")
+        )
+    finally:
+        await client.aclose()
+
+    assert [file.path for file in files] == ["src/app.py"]
+    assert files[0].patch == "@@ -1 +1 @@\n+x"
+    assert requests[0].url.params == httpx.QueryParams({"page": "1", "per_page": "100"})

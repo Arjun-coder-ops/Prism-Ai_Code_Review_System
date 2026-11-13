@@ -35,6 +35,13 @@ class PublicPullRequest:
     head_sha: str
 
 
+@dataclass(frozen=True)
+class PublicPullRequestFile:
+    path: str
+    status: str
+    patch: str | None
+
+
 class GitHubPublicClient:
     """Read public pull-request metadata without following untrusted URLs."""
 
@@ -73,6 +80,36 @@ class GitHubPublicClient:
             return _parse_pull_request_payload(payload, parsed_url)
         except (TypeError, ValueError, KeyError) as exc:
             raise GitHubPublicClientError("invalid_upstream_response") from exc
+
+    async def list_pull_request_files(
+        self,
+        parsed_url: ParsedPullRequestUrl,
+    ) -> list[PublicPullRequestFile]:
+        path = (
+            f"/repos/{parsed_url.owner}/{parsed_url.repository}/pulls/"
+            f"{parsed_url.number}/files"
+        )
+        files: list[PublicPullRequestFile] = []
+        for page in range(1, 31):
+            try:
+                response = await self._client.get(
+                    path,
+                    headers=_GITHUB_HEADERS,
+                    params={"page": page, "per_page": 100},
+                )
+            except httpx.HTTPError as exc:
+                raise GitHubPublicClientError("upstream_unavailable") from exc
+            if response.status_code != 200:
+                raise GitHubPublicClientError("upstream_unavailable")
+            try:
+                payload = response.json()
+                page_files = _parse_pull_request_files_payload(payload)
+            except (TypeError, ValueError, KeyError) as exc:
+                raise GitHubPublicClientError("invalid_upstream_response") from exc
+            files.extend(page_files)
+            if len(page_files) < 100:
+                return files
+        raise GitHubPublicClientError("too_many_changed_files")
 
 
 def _parse_pull_request_payload(
@@ -123,4 +160,40 @@ def _parse_pull_request_payload(
         state=state,
         base_sha=base_sha,
         head_sha=head_sha,
+    )
+
+
+def _parse_pull_request_files_payload(payload: Any) -> list[PublicPullRequestFile]:
+    if not isinstance(payload, list):
+        raise ValueError("expected a file list")
+    files: list[PublicPullRequestFile] = []
+    for entry in payload:
+        if not isinstance(entry, dict):
+            raise ValueError("invalid file entry")
+        file_path = entry["filename"]
+        file_status = entry["status"]
+        patch = entry.get("patch")
+        if not (
+            isinstance(file_path, str)
+            and _is_safe_repository_path(file_path)
+            and isinstance(file_status, str)
+            and (isinstance(patch, str) or patch is None)
+        ):
+            raise ValueError("invalid changed-file metadata")
+        files.append(
+            PublicPullRequestFile(
+                path=file_path,
+                status=file_status,
+                patch=patch,
+            )
+        )
+    return files
+
+
+def _is_safe_repository_path(value: str) -> bool:
+    return (
+        bool(value)
+        and not value.startswith("/")
+        and "\x00" not in value
+        and all(part not in {"", ".", ".."} for part in value.split("/"))
     )

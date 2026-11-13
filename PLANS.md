@@ -53,5 +53,8 @@ the required GitHub/LLM credentials; Groq will be primary and Gemini fallback.
   review-run persistence. It uses no repository clone or execution path.
 - Implemented initial deterministic unified-diff analysis and exact-evidence
   verification for narrowly defined dynamic-execution patterns.
+- Implemented bounded public GitHub changed-file pagination and a pipeline that
+  analyzes only supplied patch text; missing patches abstain rather than cause
+  source retrieval or execution.
 - Deferred: public file pagination, durable worker dispatch, finding
   persistence, UI presentation, LLM provider adapter, and any publication.

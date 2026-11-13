@@ -32,7 +32,9 @@ can create a finding without deterministic context and evidence verification.
 - **API:** auth, input validation, status and findings retrieval; handlers are
   thin and delegate to services.
 - **GitHub integration:** allowlisted API access, pagination, rate limits, and
-  later token handling and publication.
+  later token handling and publication. Public diff retrieval uses only the
+  fixed GitHub REST path, bounded to GitHub's 3,000-file API limit; unsafe
+  paths and malformed upstream metadata are rejected.
 - **Analysis:** parses diffs and normalizes deterministic analyzer output; it
   never executes repository code. The first narrow rules flag only added
   `subprocess(..., shell=True)` and `eval(...)` lines, then retain a candidate
