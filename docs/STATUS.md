@@ -15,8 +15,9 @@
   persistence, status retrieval, and a polling frontend.
 - Milestone 3 is in progress: the webhook boundary verifies raw-body GitHub
   HMAC signatures in constant time, limits payload size, and fails closed when
-  its environment-managed secret is unavailable. It does not yet synchronize
-  installations or use GitHub App credentials.
+  its environment-managed secret is unavailable. Verified deliveries are now
+  retained once in a digest-only ledger (`20261113_0002`); it does not yet
+  synchronize installations or use GitHub App credentials.
 
 The worker keeps one asyncio loop per prefork process. This avoids asyncpg
 connections being reused across per-task event loops; a regression test covers
@@ -24,7 +25,7 @@ the failure that exposed this requirement.
 
 ## Observed verification
 
-- Python 3.12 container gate: Ruff PASS, Mypy PASS, and **39 passed** backend
+- Python 3.12 container gate: Ruff PASS, Mypy PASS, and **46 passed** backend
   tests with 84% total coverage. The integration tests use local Compose
   PostgreSQL/Redis and deterministic fake GitHub-diff clients.
 - Frontend: ESLint PASS, Vitest **1 passed**, TypeScript/Vite production build

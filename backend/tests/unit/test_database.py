@@ -45,6 +45,7 @@ def test_configures_groq_primary_and_gemini_fallback_without_exposing_keys() -> 
 def test_initial_metadata_includes_review_persistence_tables() -> None:
     assert set(Base.metadata.tables) == {
         "github_installations",
+        "github_webhook_deliveries",
         "pull_requests",
         "repositories",
         "review_findings",

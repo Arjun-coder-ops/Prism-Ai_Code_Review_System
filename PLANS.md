@@ -75,5 +75,8 @@ bounded fallback. Deterministic analysis is the required first stage.
 
 - Added a fail-closed raw-body HMAC verification endpoint. It has explicit size
   limits and accepts only a small event allow-list after authentication.
+- Added a migrated, digest-only delivery ledger with a unique GitHub delivery
+  ID, so duplicate signed deliveries are acknowledged without retaining raw
+  webhook payloads.
 - GitHub App private-key authentication, installation synchronization, and
   credentialed live verification remain pending configuration and implementation.

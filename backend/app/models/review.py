@@ -142,3 +142,22 @@ class ReviewFinding(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class GitHubWebhookDelivery(Base):
+    """Minimal, deduplicated audit record for a verified webhook delivery."""
+
+    __tablename__ = "github_webhook_deliveries"
+    __table_args__ = (Index("ix_webhook_deliveries_received_at", "received_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    github_delivery_id: Mapped[uuid.UUID] = mapped_column(unique=True, nullable=False)
+    event_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    action: Mapped[str | None] = mapped_column(String(64))
+    payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    processing_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

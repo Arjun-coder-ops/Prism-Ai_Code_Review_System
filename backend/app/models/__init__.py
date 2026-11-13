@@ -1,5 +1,6 @@
 from app.models.review import (
     GitHubInstallation,
+    GitHubWebhookDelivery,
     PullRequest,
     Repository,
     ReviewFinding,
@@ -9,6 +10,7 @@ from app.models.review import (
 
 __all__ = [
     "GitHubInstallation",
+    "GitHubWebhookDelivery",
     "PullRequest",
     "Repository",
     "ReviewFinding",

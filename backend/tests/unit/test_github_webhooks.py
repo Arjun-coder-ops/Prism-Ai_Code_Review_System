@@ -1,9 +1,11 @@
 import hashlib
 import hmac
+import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.api import github_webhooks
 from app.core.config import get_settings
 from app.main import create_app
 
@@ -59,6 +61,10 @@ async def test_webhook_accepts_a_valid_signed_supported_event(
 ) -> None:
     payload = b'{"zen":"test"}'
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "test-secret")
+    async def record_once(*_: object, **__: object) -> bool:
+        return True
+
+    monkeypatch.setattr(github_webhooks, "record_webhook_delivery", record_once)
     get_settings.cache_clear()
     try:
         async with AsyncClient(
@@ -69,11 +75,47 @@ async def test_webhook_accepts_a_valid_signed_supported_event(
                 content=payload,
                 headers={
                     "X-GitHub-Event": "ping",
+                    "X-GitHub-Delivery": str(uuid.uuid4()),
                     "X-Hub-Signature-256": _signature(payload),
                 },
             )
         assert response.status_code == 202
         assert response.json() == {"status": "accepted"}
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.anyio
+async def test_webhook_deduplicates_a_valid_delivery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b'{"action":"synchronize"}'
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "test-secret")
+
+    async def record_duplicate(*_: object, **__: object) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        github_webhooks,
+        "record_webhook_delivery",
+        record_duplicate,
+    )
+    get_settings.cache_clear()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app()), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/github/webhooks",
+                content=payload,
+                headers={
+                    "X-GitHub-Event": "pull_request",
+                    "X-GitHub-Delivery": str(uuid.uuid4()),
+                    "X-Hub-Signature-256": _signature(payload),
+                },
+            )
+        assert response.status_code == 202
+        assert response.json() == {"status": "duplicate"}
     finally:
         get_settings.cache_clear()
 
